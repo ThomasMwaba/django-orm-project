@@ -1,18 +1,32 @@
 import uuid
 
 from django.db import models
+from django.utils.text import slugify
 
 # Create your models here.
 
 
-class Catergory(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True, help_text="Enter Category...")
+    slug = models.SlugField(unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=False)
-    parent = models.ForeignKey("self", on_delete=models.PROTECT)
+    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Inventory Category"
+        verbose_name_plural = "Categories"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
-class SeasonalEvents(models.Model):
+class SeasonalEvent(models.Model):
+    id = models.BigAutoField(primary_key=True)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     name = models.CharField(max_length=100, unique=True)
@@ -20,7 +34,10 @@ class SeasonalEvents(models.Model):
 
 class ProductType(models.Model):
     name = models.CharField(max_length=100)
-    parent = models.ForeignKey("self", on_delete=models.CASCADE)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Product(models.Model):
@@ -36,34 +53,49 @@ class Product(models.Model):
 
     pid = models.CharField(max_length=255)
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(null=True)
     is_digital = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True, editable=False)
     is_active = models.BooleanField(default=False)
     status = models.CharField(max_length=3, choices=STOCK_STATUS, default=OUT_OF_STOCK)
-    catergory = models.ForeignKey(Catergory, on_delete=models.SET_NULL, null=True)
+    category = models.ForeignKey(
+        Category, on_delete=models.SET_NULL, null=True, blank=True
+    )
     seasonal_event = models.ForeignKey(
-        SeasonalEvents, on_delete=models.SET_NULL, null=True
+        SeasonalEvent, on_delete=models.SET_NULL, null=True, blank=True
     )
     product_type = models.ManyToManyField(ProductType, related_name="product_type")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
 class Attribute(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(null=True)
 
+    def __str__(self):
+        return self.name
+
 
 class AttributeValue(models.Model):
-    attributevalue = models.CharField(max_length=100)
+    attribute_value = models.CharField(max_length=100)
     attribute = models.ForeignKey(Attribute, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.attribute.name}: {self.attribute_value}"
 
 
 class ProductLine(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=5)
     sku = models.UUIDField(default=uuid.uuid4)
-    slug = models.SlugField(unique=True)
     stock_qty = models.IntegerField(default=0)
     is_active = models.BooleanField(default=False)
     order = models.IntegerField()
@@ -75,7 +107,6 @@ class ProductLine(models.Model):
 
 
 class ProductImage(models.Model):
-    name = models.CharField(max_length=100)
     alternative_text = models.CharField(max_length=100)
     url = models.ImageField()
     order = models.IntegerField()
