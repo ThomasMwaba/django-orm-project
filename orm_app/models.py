@@ -66,7 +66,9 @@ class Product(models.Model):
     seasonal_event = models.ForeignKey(
         SeasonalEvent, on_delete=models.SET_NULL, null=True, blank=True
     )
-    product_type = models.ManyToManyField(ProductType, related_name="product_type")
+    product_type = models.ManyToManyField(
+        ProductType, through="Product_ProductType", related_name="product_type"
+    )
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -78,7 +80,7 @@ class Product(models.Model):
 
 
 class Attribute(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(null=True)
 
     def __str__(self):
@@ -95,14 +97,16 @@ class AttributeValue(models.Model):
 
 class ProductLine(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=5)
-    sku = models.UUIDField(default=uuid.uuid4)
+    sku = models.UUIDField(default=uuid.uuid4, unique=True)
     stock_qty = models.IntegerField(default=0)
     is_active = models.BooleanField(default=False)
     order = models.IntegerField()
     weight = models.FloatField()
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     attribute_values = models.ManyToManyField(
-        AttributeValue, related_name="attribute_values"
+        AttributeValue,
+        through="ProductLine_AttributeValue",
+        related_name="attribute_values",
     )
 
 
